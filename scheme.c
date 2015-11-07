@@ -3,70 +3,18 @@
 #include <stdio.h>
 #include <ctype.h>
 
-/**** readline ****/
-/* 
- * Call readline(), then use mygetc and myungetc which
- * behave like C's regular getc/ungetc funtions which
- * are not implemented with cc65.
- *
- */
-static const int LINE_BUFFER_SIZE=100;
-static char line_buffer[100]; // Global line buffer
-static short bufptr=0; 		  // Current character to read
-
-void readline() {
-	// Loads buffer until newline detected or buffer full.
-	// Zero-terminates resulting string.
-	char c;
-	short i=0;
-
-	bufptr=0;
-
-	while( ((c=cgetc()) != '\n') && i<LINE_BUFFER_SIZE) {
-		cputc(c);
-		line_buffer[i] = c;
-		++i;
-	}
-	printf("\n");
-
-	if (i<LINE_BUFFER_SIZE) {
-		line_buffer[i] = 0;
-	} else {
-		line_buffer[LINE_BUFFER_SIZE-1] = 0;
-	}
-}
-
-char mygetc() {
-	if (bufptr < LINE_BUFFER_SIZE) {
-		return line_buffer[bufptr++];
-	} else {
-		return 0;
-	}
-}
-
-char mypeek() {
-	// return next character, but don't advance ptr
-	if (bufptr < LINE_BUFFER_SIZE) {
-		return line_buffer[bufptr];
-	} else {
-		return 0;
-	}
-}
-
-void myungetc() {
-	// Not really ungetc since you can't insert arbitrary characters...
-	if (bufptr > 0) {
-		--bufptr;
-	} 
-}
+#include "readline.h"
 
 /**** MODEL ****/
 
-typedef enum {FIXNUM} object_type;
+typedef enum {BOOLEAN, FIXNUM} object_type;
 
 typedef struct object {
     object_type type;
     union {
+		struct {
+			char value;
+		} boolean;
         struct {
             int value; // was long, but that crashed VICE
         } fixnum;
@@ -82,6 +30,31 @@ object *alloc_object(void) {
         exit(1);
     }
     return obj;
+}
+
+object *false;
+object *true;
+
+char is_boolean(object *obj) {
+	return obj->type == BOOLEAN;
+}
+
+char is_false(object *obj) {
+	return obj == false;
+}
+
+char is_true(object *obj) {
+	return !is_false(obj);
+}
+
+void init(void) {
+	false = alloc_object();
+	false->type = BOOLEAN;
+	false->data.boolean.value = 0;
+
+	true = alloc_object();
+	true->type = BOOLEAN;
+	true->data.boolean.value = 1;
 }
 
 object *make_fixnum(int value) { // was long
@@ -110,8 +83,19 @@ object *read() {
 	readline();
 
 	c = mygetc();
+	printf("\nGot: %c\n", c);
 
-	if (isdigit(c) || (c == '-' && (isdigit(mypeek())))) {
+	if (c == '#') { // boolean
+		c = mygetc();
+		switch (c) {
+			case 't':
+				return true;
+			case 'f':
+				return false;
+			default:
+				fprintf(stderr, "Unknown boolean literal\n");
+		}
+	} else if (isdigit(c) || (c == '-' && (isdigit(mypeek())))) {
 		/* read a fixnum */
 		if (c == '-') {
 			sign = -1;
@@ -145,6 +129,9 @@ object *eval(object *exp) {
 
 void writeit(object *obj) {
 	switch (obj->type) {
+		case BOOLEAN:
+			printf("#%c", is_false(obj) ? 'f' : 't');
+			break;
 		case FIXNUM:
 			printf("%d", obj->data.fixnum.value);
 			break;
@@ -157,6 +144,8 @@ void writeit(object *obj) {
 
 void scheme(void) {
 	printf("Welcome to Scheme for Commodore!\n");
+
+	init();
 
 	while (1) {
 		printf("> ");

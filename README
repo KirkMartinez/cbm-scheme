@@ -21,6 +21,9 @@ The Scheme implementation is based on Peter Michaux's Scheme from
 Scratch article: 
 http://peter.michaux.ca/articles/scheme-from-scratch-introduction
 
+I made some changes to the Scheme syntax to suit the CBM:
+  - Strings are expressed using #" instead of #\
+
 Enjoy!
 Kirk Martinez
 

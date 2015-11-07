@@ -25,17 +25,17 @@ C1541	= c1541
 
 .c.o:
 	@echo $<
-	@$(CC) $(CFLAGS) -Oirs --codesize 500 -T -g -t $(SYS) $<
-	@$(AS) $(<:.c=.s)
+	$(CC) $(CFLAGS) -Oirs --codesize 500 -T -g -t $(SYS) $<
+	$(AS) $(<:.c=.s)
 
 .s.o:
 	@echo $<
-	@$(AS) $(AFLAGS) -t $(SYS) $<
+	$(AS) $(AFLAGS) -t $(SYS) $<
 
 .PRECIOUS: %.o
 
 .o:
-	@$(LD) $(LDFLAGS_$(@F)_$(SYS)) -o $@ -t $(SYS) -m $@.map $^ $(CLIB)
+	$(LD) $(LDFLAGS_$(@F)_$(SYS)) -o $@ -t $(SYS) -m $@.map $^ $(CLIB) 
 
 # --------------------------------------------------------------------------
 # List of executables.
@@ -47,6 +47,8 @@ EXELIST	=	scheme
 
 .PHONY:	all
 all:	$(EXELIST)
+
+scheme: readline.o
 
 # --------------------------------------------------------------------------
 # Make CBM disk. Needs the c1541 program that comes with the VICE emulator
