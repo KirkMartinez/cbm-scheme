@@ -22,7 +22,16 @@ Scratch article:
 http://peter.michaux.ca/articles/scheme-from-scratch-introduction
 
 I made some changes to the Scheme syntax to suit the CBM:
-  - Strings are expressed using #" instead of #\
+  - Character literals are expressed using #' instead of #\
+    This uses the CBM backtick (Shift-7) 
+  - You can quote double-quotes in a string using backtick (not \)
+
+BUGS:
+  - Entering "'n" prints a graphics charcter instead of a newline
+
+TODO:
+  - readline gets stuck at rightmost character
+  - delete key doesn't work as expected
 
 Enjoy!
 Kirk Martinez
