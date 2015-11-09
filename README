@@ -1,9 +1,9 @@
 Herein ye shall find a Scheme interpreter for the Commodore 128.
 
 You will need the following items:
-  1. The VICE emulator (to generate .d64 image)
+  1. The VICE emulator (to generate .d64 disk image)
 	http://vice-emu.sourceforge.net
-  2. The cc65 compiler
+  2. The cc65 C compiler, assembler, linker
 	http://cc65.github.io/cc65/
   3. (Optional) A Commodore 128 (or you can use VICE)
 	http://www.ebay.com
@@ -22,16 +22,12 @@ Scratch article:
 http://peter.michaux.ca/articles/scheme-from-scratch-introduction
 
 I made some changes to the Scheme syntax to suit the CBM:
-  - Character literals are expressed using #' instead of #\
-    This uses the CBM backtick (Shift-7) 
-  - You can quote double-quotes in a string using backtick (not \)
+  - Character literals are expressed using #% instead of #\
+  - You can quote double-quotes in a string using percent (%", not \")
+  - Use #%newline and #%space for newline and space in strings
 
 BUGS:
-  - Entering "'n" prints a graphics charcter instead of a newline
-
-TODO:
-  - readline gets stuck at rightmost character
-  - delete key doesn't work as expected
+  - Delete key doesn't work as expected
 
 Enjoy!
 Kirk Martinez

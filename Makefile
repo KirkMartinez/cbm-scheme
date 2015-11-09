@@ -40,7 +40,8 @@ C1541	= c1541
 # --------------------------------------------------------------------------
 # List of executables.
 
-EXELIST	=	scheme		
+EXELIST	=	testrunner \
+		scheme		
 
 # --------------------------------------------------------------------------
 # Rules to make the binaries
@@ -48,7 +49,9 @@ EXELIST	=	scheme
 .PHONY:	all
 all:	$(EXELIST)
 
-scheme: readline.o
+scheme: getc_conio.o
+
+testrunner: getc_conio.o
 
 # --------------------------------------------------------------------------
 # Make CBM disk. Needs the c1541 program that comes with the VICE emulator

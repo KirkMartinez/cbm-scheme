@@ -1,3 +1,7 @@
+scheme
+*.s
 *.d64
 *.map
 *.o
+*.swp
+

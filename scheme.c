@@ -4,7 +4,7 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "readline.h"
+#include "getc_conio.h"
 
 /************************ MODEL ************************/
 
@@ -57,6 +57,8 @@ char is_true(object *obj) {
 }
 
 void init(void) {
+	getc_conio_init();
+
 	false = alloc_object();
 	false->type = BOOLEAN;
 	false->data.boolean.value = 0;
@@ -114,6 +116,33 @@ char is_string(object *obj) {
 
 /*********************** READ ***********************/
 
+char peek() {
+    char c;
+
+    c = getc_conio();
+    ungetc_conio(c);
+    return c;
+}
+
+// this assumes we've read the entire program in
+// which will be problematic at some point...
+void eat_whitespace() {
+    char c;
+
+	// For now, stop reading on newline, not EOF
+    while ((c = getc_conio()) != '\n') {
+        if (isspace(c)) {
+            continue;
+        }
+        else if (c == ';') { // comments are whitespace 
+            while (((c = getc_conio()) != 0) && (c != '\n'));
+            continue;
+        }
+        ungetc_conio(c);
+        break;
+    }
+}
+
 char is_delimiter(int c) {
     return isspace(c) || c == 0||
 		c == '('   || c == ')' ||
@@ -124,7 +153,7 @@ void eat_expected_string(char *str) {
     int c;
 
     while (*str != '\0') {
-        c = mygetc();
+        c = getc_conio();
         if (c != *str) {
             fprintf(stderr, "unexpected character '%c'\n", c);
         }
@@ -133,7 +162,7 @@ void eat_expected_string(char *str) {
 }
 
 void peek_expected_delimiter() {
-    if (!is_delimiter(mypeek())) {
+    if (!is_delimiter(peek())) {
         fprintf(stderr, "character not followed by delimiter\n");
     }
 }
@@ -141,19 +170,19 @@ void peek_expected_delimiter() {
 object *read_character() {
     int c;
 
-    c = mygetc();
+    c = getc_conio();
     switch (c) {
         case EOF:
             fprintf(stderr, "incomplete character literal\n");
         case 's':
-            if (mypeek() == 'p') {
+            if (peek() == 'p') {
                 eat_expected_string("pace");
                 peek_expected_delimiter();
                 return make_character(' ');
             }
             break;
         case 'n':
-            if (mypeek() == 'e') {
+            if (peek() == 'e') {
                 eat_expected_string("ewline");
                 peek_expected_delimiter();
                 return make_character('\n');
@@ -172,44 +201,46 @@ object *read() {
 #define BUFFER_MAX 100
 	char buffer[BUFFER_MAX];
 
-	readline();
+	eat_whitespace();
 
-	c = mygetc();
+	c = getc_conio();
 
 	if (c == '#') { // BOOLEAN or CHARACTER
-		c = mygetc();
+		c = getc_conio();
 		switch (c) {
 			case 't':
 				return true;
 			case 'f':
 				return false;
-			case '\'':
+			case '%':
 				return read_character();
 			default:
 				fprintf(stderr, "Unknown boolean literal\n");
+				exit(1);
 		}
-	} else if (isdigit(c) || (c == '-' && (isdigit(mypeek())))) {
+	} else if (isdigit(c) || (c == '-' && (isdigit(peek())))) {
 		/* read a fixnum */
 		if (c == '-') {
 			sign = -1;
 			++i;
 		} else {
-			myungetc();
+			ungetc_conio(c);
 		} 
-		while (isdigit(c=mygetc())) {
+		while (isdigit(c=getc_conio())) {
 			num = (num * 10) + (c - '0');
 		}
 		num *= sign;
 		if (is_delimiter(c)) {
+			ungetc_conio(c);
 			return make_fixnum(num);
 		} else {
 			fprintf(stderr, "number not followed by delimiter\n");
 		}
 	} else if (c == '"') { // STRING
         i = 0;
-        while ((c = mygetc()) != '"') {
-            if (c == '\'') {
-                c = mygetc();
+        while ((c = getc_conio()) != '"') {
+            if (c == '%') {
+                c = getc_conio();
                 if (c == 'n') {
                     c = '\n';
                 }
