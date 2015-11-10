@@ -18,10 +18,10 @@
  * but adapted to work with Commodore I/O.
  *
  */
-#define GETC_CONIO_EOF '\0';
+const char GETC_CONIO_EOF = '\0';
 
-void getc_conio_init();
-char getc_conio();
+void getc_conio_init(void);
+char getc_conio(void);
 void ungetc_conio(char);
 
 #endif

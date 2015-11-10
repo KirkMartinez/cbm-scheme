@@ -3,24 +3,25 @@
 #include <stdio.h>
 
 // Types
-const char GETC_CONIO_EOF = '\0';
-
-// Screen size
-unsigned char size_x, size_y;
-
-// Types
 typedef enum {false, true} bool;
 
-// queue to support multiple calls to ungetc
+// Constants
+const char GETC_CONIO_EOF = '\0';
+
+// Globals
+unsigned char size_x, size_y;      // Screen size
 static const int BUFFER_SIZE=1000; // duplicate below
-static char line_buffer[1000]; // ungetc buffer
-static short bufptr=0;				  // where to insert next char
-static short head=0;                  // "now serving..."
-static bool saw_newline = false;	  // says "ok to serve"
+static char line_buffer[1000];     // ungetc buffer
+static short bufptr=0;             // where to insert next char
+static short head=0;               // "now serving..."
+static bool saw_newline = false;   // says "ok to serve"
 
 // init
-void getc_conio_init() {
+void getc_conio_init(void) {
 	screensize(&size_x, &size_y);
+	bufptr = 0;
+	head = 0;
+	saw_newline = false;
 }
 
 // private
@@ -33,7 +34,7 @@ void getc_conio_insert(char c) {
 // private
 // returns next customer from queue
 // only call this if there is one!
-char getc_conio_remove() {
+char getc_conio_remove(void) {
 	char c;
 
 	c = line_buffer[head];
@@ -51,7 +52,7 @@ char getc_conio_remove() {
 }
 
 //
-void read_a_line() {
+void read_a_line(void) {
 	char c;
 	unsigned char x_pos;
 
@@ -71,7 +72,7 @@ void read_a_line() {
 	saw_newline = true;
 }
 
-char getc_conio() {
+char getc_conio(void) {
 	char c;
 
 	if (saw_newline && (head != bufptr)) {

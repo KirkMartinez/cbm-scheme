@@ -8,7 +8,7 @@
 
 /************************ MODEL ************************/
 
-typedef enum {BOOLEAN, FIXNUM, CHARACTER, STRING} object_type;
+typedef enum {THE_EMPTY_LIST, BOOLEAN, FIXNUM, CHARACTER, STRING, PAIR} object_type;
 
 typedef struct object {
     object_type type;
@@ -25,6 +25,10 @@ typedef struct object {
 		struct {
 			char *value;
 		} string;
+		struct {
+			struct object *car;
+			struct object *cdr;
+		} pair;
     } data;
 } object;
 
@@ -37,6 +41,14 @@ object *alloc_object(void) {
         exit(1);
     }
     return obj;
+}
+
+// EMPTY LIST
+
+object *the_empty_list;
+
+char is_the_empty_list(object *obj) {
+	return obj == the_empty_list;
 }
 
 // BOOLEAN
@@ -59,6 +71,9 @@ char is_true(object *obj) {
 void init(void) {
 	getc_conio_init();
 
+	the_empty_list = alloc_object();
+	the_empty_list->type = THE_EMPTY_LIST;
+
 	false = alloc_object();
 	false->type = BOOLEAN;
 	false->data.boolean.value = 0;
@@ -77,6 +92,10 @@ object *make_fixnum(int value) { // was long
     obj->type = FIXNUM;
     obj->data.fixnum.value = value;
     return obj;
+}
+
+char is_fixnum(object *obj) {
+	return obj->type == FIXNUM;
 }
 
 // CHARACTER
@@ -104,6 +123,7 @@ object *make_string(char *value) {
     obj->data.string.value = malloc(strlen(value) + 1); 
     if (obj->data.string.value == NULL) {
         fprintf(stderr, "out of memory\n");
+		exit(1);
     }   
     strcpy(obj->data.string.value, value);
     return obj;
@@ -113,10 +133,42 @@ char is_string(object *obj) {
     return obj->type == STRING;
 }
 
+// PAIR
+
+object *cons(object *car, object *cdr) {
+    object *obj;
+
+    obj = alloc_object();
+    obj->type = PAIR;
+    obj->data.pair.car = car;
+    obj->data.pair.cdr = cdr;
+
+    return obj;
+}
+
+char is_pair(object *obj) {
+	return obj->type == PAIR;
+}
+
+object *car(object *pair) {
+	return pair->data.pair.car;
+}
+
+void set_car(object *obj, object *value) {
+	obj->data.pair.car = value;
+}
+
+object *cdr(object *pair) {
+	return pair->data.pair.cdr;
+}
+
+void set_cdr(object *obj, object *value) {
+	obj->data.pair.cdr = value;
+}
 
 /*********************** READ ***********************/
 
-char peek() {
+char peek(void) {
     char c;
 
     c = getc_conio();
@@ -126,7 +178,7 @@ char peek() {
 
 // this assumes we've read the entire program in
 // which will be problematic at some point...
-void eat_whitespace() {
+void eat_whitespace(void) {
     char c;
 
 	// For now, stop reading on newline, not EOF
@@ -144,7 +196,7 @@ void eat_whitespace() {
 }
 
 char is_delimiter(int c) {
-    return isspace(c) || c == 0||
+    return isspace(c) || c == GETC_CONIO_EOF ||
 		c == '('   || c == ')' ||
 		c == '"'   || c == ';';
 }
@@ -156,24 +208,27 @@ void eat_expected_string(char *str) {
         c = getc_conio();
         if (c != *str) {
             fprintf(stderr, "unexpected character '%c'\n", c);
+			exit(1);
         }
         str++;
     }
 }
 
-void peek_expected_delimiter() {
+void peek_expected_delimiter(void) {
     if (!is_delimiter(peek())) {
         fprintf(stderr, "character not followed by delimiter\n");
+		exit(1);
     }
 }
 
-object *read_character() {
+object *read_character(void) {
     int c;
 
     c = getc_conio();
     switch (c) {
         case EOF:
             fprintf(stderr, "incomplete character literal\n");
+			exit(1);
         case 's':
             if (peek() == 'p') {
                 eat_expected_string("pace");
@@ -193,7 +248,50 @@ object *read_character() {
     return make_character(c);
 }
 
-object *read() {
+object *read(void); 
+
+object *read_pair(void) {
+    char c;
+    object *car_obj;
+    object *cdr_obj;
+
+    eat_whitespace();
+    
+    c = getc_conio();
+    if (c == ')') { /* read the empty list */
+        return the_empty_list;
+    }   
+    ungetc_conio(c);
+
+    car_obj = read();
+
+    eat_whitespace();
+    
+    c = getc_conio();    
+    if (c == '.') { /* read improper list */
+        c = peek();
+        if (!is_delimiter(c)) {
+            fprintf(stderr, "dot not followed by delimiter\n");
+            exit(1);
+        }   
+        cdr_obj = read();
+        eat_whitespace();
+        c = getc_conio();
+        if (c != ')') {
+            fprintf(stderr, "missing close paren\n");
+            exit(1);
+        }   
+
+        return cons(car_obj, cdr_obj);
+    }   
+    else { /* read list */
+        ungetc_conio(c);
+        cdr_obj = read_pair();    
+        return cons(car_obj, cdr_obj);
+    }   
+}
+
+object *read(void) {
 	char c;
 	short sign = 1;
     short i=0;
@@ -235,6 +333,7 @@ object *read() {
 			return make_fixnum(num);
 		} else {
 			fprintf(stderr, "number not followed by delimiter\n");
+			exit(1);
 		}
 	} else if (c == '"') { // STRING
         i = 0;
@@ -247,23 +346,27 @@ object *read() {
             }
             if (c == 0) { // readline returns zero for EOF
                 fprintf(stderr, "non-terminated string literal\n");
+				exit(1);
             }
             /* subtract 1 to save space for '\0' terminator */
             if (i < BUFFER_MAX - 1) {
                 buffer[i++] = c;
             }
             else {
-                fprintf(stderr,
-                        "string too long. Maximum length is %d\n",
-                        BUFFER_MAX);
+                fprintf(stderr, "string too long. Maximum length is %d\n", BUFFER_MAX);
+				exit(1);
             }
         }
         buffer[i] = '\0';
         return make_string(buffer);
+	} else if (c == '(') { // empty list or pair
+		return read_pair();
 	} else {
 		fprintf(stderr, "bad input. Unexpected '%c'\n", c);
+		exit(1);
 	}
 	fprintf(stderr, "read illegal state\n");
+	exit(1);
 }
 
 /************************ EVAL ************************/
@@ -275,11 +378,37 @@ object *eval(object *exp) {
 
 /************************ PRINT ************************/
 
+void writeit(object *obj);
+
+void write_pair(object *pair) {
+    object *car_obj;
+    object *cdr_obj;
+
+    car_obj = car(pair);
+    cdr_obj = cdr(pair);
+
+    writeit(car_obj);
+    if (cdr_obj->type == PAIR) {
+        printf(" ");
+        write_pair(cdr_obj);
+    }
+    else if (cdr_obj->type == THE_EMPTY_LIST) {
+        return;
+    }
+    else {
+        printf(" . ");
+        writeit(cdr_obj);
+    }
+}
+
 void writeit(object *obj) {
 	char c;
 	char *str;
 
 	switch (obj->type) {
+		case THE_EMPTY_LIST:
+			printf("()");
+			break;
 		case BOOLEAN:
 			printf("#%c", is_false(obj) ? 'f' : 't');
 			break;
@@ -321,8 +450,14 @@ void writeit(object *obj) {
 			}
 			putchar('"');
 			break;
+		case PAIR:
+			printf("(");
+			write_pair(obj);
+			printf(")");
+			break;
 		default:
 			fprintf(stderr, "cannot write unknown type\n");
+			exit(1);
 	}
 }
 
