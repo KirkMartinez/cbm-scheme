@@ -26,6 +26,10 @@ I made some changes to the Scheme syntax to suit the CBM:
   - You can quote double-quotes in a string using percent (%", not \")
   - Use #%newline and #%space for newline and space in strings
   - Symbols can only be up to 10 characters long
+  - Built-in procedure names have been shorteded to fit the 10 char limit
+
+TODO:
+  - Provide line history/navigation in interpreter using arrow keys
 
 Enjoy!
 Kirk Martinez
