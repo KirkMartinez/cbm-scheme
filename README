@@ -31,6 +31,10 @@ I made some changes to the Scheme syntax to suit the CBM:
 TODO:
   - Provide line history/navigation in interpreter using arrow keys
 
+BUGS:
+  - Memory is never freed, even when re-running the program.
+    I guess this has something to do with how cc65 implements malloc...
+
 Enjoy!
 Kirk Martinez
 
