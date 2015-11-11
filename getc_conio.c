@@ -51,6 +51,13 @@ char getc_conio_remove(void) {
 	return c;
 }
 
+void getc_conio_backspace() {
+    if (bufptr > 0) {
+        bufptr--;
+        putchar((char)20); // backspace
+    }
+}
+
 //
 void read_a_line(void) {
 	char c;
@@ -59,8 +66,12 @@ void read_a_line(void) {
 	// buffer characters until we see RETURN
 	do {
 		c = cgetc();
-		getc_conio_insert(c); 
-		putchar(c); // show it
+        if (c == 20) { // Delete/backspace key
+            getc_conio_backspace();
+        } else {
+            getc_conio_insert(c); 
+            putchar(c);
+        }
 
 		// When we reach the right edge, newline
 		x_pos = wherex();

@@ -9,7 +9,7 @@
 /************************ MODEL ************************/
 
 typedef enum {THE_EMPTY_LIST, BOOLEAN, SYMBOL, FIXNUM, 
-              CHARACTER, STRING, PAIR} object_type;
+              CHARACTER, STRING, PAIR, PRIMITIVE_PROC} object_type;
 
 typedef struct object {
     object_type type;
@@ -34,6 +34,9 @@ typedef struct object {
             struct object *car;
             struct object *cdr;
         } pair;
+        struct {
+            struct object *(*fn)(struct object *arguments);
+        } primitive_proc;
     } data;
 } object;
 
@@ -53,28 +56,57 @@ object *the_empty_list;
 object *false;
 object *true;
 object *symbol_table;
+object *quote_symbol;
+object *define_symbol;
+object *set_symbol;
+object *ok_symbol;
+object *if_symbol;
+object *the_empty_environment;
+object *the_global_environment;
 
 // Forwards
 object *cons(object *car, object *cdr);
 object *car(object *pair);
 object *cdr(object *pair);
+object *make_symbol(char *value);
+object *setup_environment(void);
+//void define_variable(object *var, object *val, object *env);
+//object *make_primitive_proc(object *(*fn)(struct object *arguments));
+//object *add_proc(object *arguments);
 
-void init(void) {
-    getc_conio_init();
+// cons are used to represent s-expressions
+// so these are usefulf for extracting the 
+// relevant bits for evaluating them.
+//
+#define caar(obj)   car(car(obj))
+#define cadr(obj)   car(cdr(obj))
+#define cdar(obj)   cdr(car(obj))
+#define cddr(obj)   cdr(cdr(obj))
+#define caaar(obj)  car(car(car(obj)))
+#define caadr(obj)  car(car(cdr(obj)))
+#define cadar(obj)  car(cdr(car(obj)))
+#define caddr(obj)  car(cdr(cdr(obj)))
+#define cdaar(obj)  cdr(car(car(obj)))
+#define cdadr(obj)  cdr(car(cdr(obj)))
+#define cddar(obj)  cdr(cdr(car(obj)))
+#define cdddr(obj)  cdr(cdr(cdr(obj)))
+#define caaaar(obj) car(car(car(car(obj))))
+#define caaadr(obj) car(car(car(cdr(obj))))
+#define caadar(obj) car(car(cdr(car(obj))))
+#define caaddr(obj) car(car(cdr(cdr(obj))))
+#define cadaar(obj) car(cdr(car(car(obj))))
+#define cadadr(obj) car(cdr(car(cdr(obj))))
+#define caddar(obj) car(cdr(cdr(car(obj))))
+#define cadddr(obj) car(cdr(cdr(cdr(obj))))
+#define cdaaar(obj) cdr(car(car(car(obj))))
+#define cdaadr(obj) cdr(car(car(cdr(obj))))
+#define cdadar(obj) cdr(car(cdr(car(obj))))
+#define cdaddr(obj) cdr(car(cdr(cdr(obj))))
+#define cddaar(obj) cdr(cdr(car(car(obj))))
+#define cddadr(obj) cdr(cdr(car(cdr(obj))))
+#define cdddar(obj) cdr(cdr(cdr(car(obj))))
+#define cddddr(obj) cdr(cdr(cdr(cdr(obj))))
 
-    the_empty_list = alloc_object();
-    the_empty_list->type = THE_EMPTY_LIST;
-
-    false = alloc_object();
-    false->type = BOOLEAN;
-    false->data.boolean.value = 0;
-
-    true = alloc_object();
-    true->type = BOOLEAN;
-    true->data.boolean.value = 1;
-
-    symbol_table = the_empty_list;
-}
 
 // EMPTY LIST
 
@@ -212,6 +244,167 @@ object *cdr(object *pair) {
 
 void set_cdr(object *obj, object *value) {
     obj->data.pair.cdr = value;
+}
+
+// Procedures
+
+object *make_primitive_proc(object *(*fn)(struct object *arguments)) {
+    object *obj;
+
+    obj = alloc_object();
+    obj->type = PRIMITIVE_PROC;
+    obj->data.primitive_proc.fn = fn;
+    return obj;
+}
+
+char is_primitive_proc(object *obj) {
+    return obj->type == PRIMITIVE_PROC;
+}
+
+object *add_proc(object *arguments) {
+    long result = 0;
+    
+    while (!is_the_empty_list(arguments)) {
+        result += (car(arguments))->data.fixnum.value;
+        arguments = cdr(arguments);
+    }
+    return make_fixnum(result);
+}
+
+// Environment
+
+object *enclosing_environment(object *env) {
+    return cdr(env);
+}
+
+object *first_frame(object *env) {
+    return car(env);
+}
+
+object *make_frame(object *variables, object *values) {
+    return cons(variables, values);
+}
+
+object *frame_variables(object *frame) {
+    return car(frame);
+}
+
+object *frame_values(object *frame) {
+    return cdr(frame);
+}
+
+void add_binding_to_frame(object *var, object *val, object *frame) {
+    set_car(frame, cons(var, car(frame)));
+    set_cdr(frame, cons(val, cdr(frame)));
+}
+
+object *extend_environment(object *vars, object *vals,
+                           object *base_env) {
+    return cons(make_frame(vars, vals), base_env);
+}
+
+object *lookup_variable_value(object *var, object *env) {
+    object *frame;
+    object *vars;
+    object *vals;
+    while (!is_the_empty_list(env)) {
+        frame = first_frame(env);
+        vars = frame_variables(frame);
+        vals = frame_values(frame);
+        while (!is_the_empty_list(vars)) {
+            if (var == car(vars)) {
+                return car(vals);
+            }
+            vars = cdr(vars);
+            vals = cdr(vals);
+        }
+        env = enclosing_environment(env);
+    }
+    fprintf(stderr, "unbound variable\n");
+    exit(1);
+}
+
+void set_variable_value(object *var, object *val, object *env) {
+    object *frame;
+    object *vars;
+    object *vals;
+
+    while (!is_the_empty_list(env)) {
+        frame = first_frame(env);
+        vars = frame_variables(frame);
+        vals = frame_values(frame);
+        while (!is_the_empty_list(vars)) {
+            if (var == car(vars)) {
+                set_car(vals, val);
+                return;
+            }
+            vars = cdr(vars);
+            vals = cdr(vals);
+        }
+        env = enclosing_environment(env);
+    }
+    fprintf(stderr, "unbound variable\n");
+    exit(1);
+}
+
+void define_variable(object *var, object *val, object *env) {
+    object *frame;
+    object *vars;
+    object *vals;
+    
+    frame = first_frame(env);    
+    vars = frame_variables(frame);
+    vals = frame_values(frame);
+
+    while (!is_the_empty_list(vars)) {
+        if (var == car(vars)) {
+            set_car(vals, val);
+            return;
+        }
+        vars = cdr(vars);
+        vals = cdr(vals);
+    }
+    add_binding_to_frame(var, val, frame);
+}
+
+object *setup_environment(void) {
+    object *initial_env;
+    
+    initial_env = extend_environment(
+                      the_empty_list,
+                      the_empty_list,
+                      the_empty_environment);
+    return initial_env;
+}
+
+void init(void) {
+    getc_conio_init();
+
+    the_empty_list = alloc_object();
+    the_empty_list->type = THE_EMPTY_LIST;
+
+    false = alloc_object();
+    false->type = BOOLEAN;
+    false->data.boolean.value = 0;
+
+    true = alloc_object();
+    true->type = BOOLEAN;
+    true->data.boolean.value = 1;
+
+    symbol_table = the_empty_list;
+    quote_symbol = make_symbol("quote");
+    define_symbol = make_symbol("define");
+    set_symbol = make_symbol("set!");
+    ok_symbol = make_symbol("ok");
+    if_symbol = make_symbol("if");
+    
+    the_empty_environment = the_empty_list;
+
+    the_global_environment = setup_environment();
+
+    define_variable(make_symbol("+"),
+                    make_primitive_proc(add_proc),
+                    the_global_environment);
 }
 
 /*********************** READ ***********************/
@@ -440,6 +633,8 @@ object *read(void) {
         return make_string(buffer);
     } else if (c == '(') { // THE_EMPTY_LIST or PAIR
         return read_pair();
+    } else if (c == '\'') { // quoted expressions
+        return cons(quote_symbol, cons(read(), the_empty_list));
     } else { 
         fprintf(stderr, "bad input. Unexpected '%c'\n", c);
         exit(1);
@@ -450,9 +645,170 @@ object *read(void) {
 
 /************************ EVAL ************************/
 
-/* until we have lists and symbols just echo */
-object *eval(object *exp) {
-    return exp;
+// Forwards
+object *eval(object *exp, object *env);
+
+char is_self_evaluating(object *exp) {
+    return is_boolean(exp)   ||
+           is_fixnum(exp)    ||
+           is_character(exp) ||
+           is_string(exp);
+}
+
+char is_variable(object *expression) {
+    return is_symbol(expression);
+}
+
+char is_tagged_list(object *expression, object *tag) {
+    object *the_car;
+
+    if (is_pair(expression)) {
+        the_car = car(expression);
+        return is_symbol(the_car) && (the_car == tag);
+    }
+    return 0;
+}
+
+char is_quoted(object *expression) {
+    return is_tagged_list(expression, quote_symbol);
+}
+
+object *text_of_quotation(object *exp) {
+    return cadr(exp);
+}
+
+char is_assignment(object *exp) {
+    return is_tagged_list(exp, set_symbol);
+}
+
+object *assignment_variable(object *exp) {
+    return car(cdr(exp));
+}
+
+object *assignment_value(object *exp) {
+    return car(cdr(cdr(exp)));
+}
+
+char is_definition(object *exp) {
+    return is_tagged_list(exp, define_symbol);
+}
+
+object *definition_variable(object *exp) {
+    return cadr(exp);
+}
+
+object *definition_value(object *exp) {
+    return caddr(exp);
+}
+
+char is_if(object *expression) {
+    return is_tagged_list(expression, if_symbol);
+}
+
+object *if_predicate(object *exp) {
+    return cadr(exp);
+}
+
+object *if_consequent(object *exp) {
+    return caddr(exp);
+}
+
+object *if_alternative(object *exp) {
+    if (is_the_empty_list(cdddr(exp))) {
+        return false;
+    }
+    else {
+        return cadddr(exp);
+    }
+}
+
+char is_application(object *exp) {
+    return is_pair(exp);
+}
+
+object *operator(object *exp) {
+    return car(exp);
+}
+
+object *operands(object *exp) {
+    return cdr(exp);
+}
+
+char is_no_operands(object *ops) {
+    return is_the_empty_list(ops);
+}
+
+object *first_operand(object *ops) {
+    return car(ops);
+}
+
+object *rest_operands(object *ops) {
+    return cdr(ops);
+}
+
+object *list_of_values(object *exps, object *env) {
+    if (is_no_operands(exps)) {
+        return the_empty_list;
+    }
+    else {
+        return cons(eval(first_operand(exps), env),
+                    list_of_values(rest_operands(exps), env));
+    }
+}
+
+
+
+object *eval_assignment(object *exp, object *env) {
+    set_variable_value(assignment_variable(exp),
+                       eval(assignment_value(exp), env),
+                       env);
+    return ok_symbol;
+}
+
+object *eval_definition(object *exp, object *env) {
+    define_variable(definition_variable(exp),
+                    eval(definition_value(exp), env),
+                    env);
+    return ok_symbol;
+}
+
+object *eval(object *exp, object *env) {
+    object *procedure;
+    object *arguments;
+
+tailcall:
+    if (is_self_evaluating(exp)) {
+        return exp;
+    }
+    else if (is_variable(exp)) {
+        return lookup_variable_value(exp, env);
+    }
+    else if (is_quoted(exp)) {
+        return text_of_quotation(exp);
+    }
+    else if (is_assignment(exp)) {
+        return eval_assignment(exp, env);
+    }
+    else if (is_definition(exp)) {
+        return eval_definition(exp, env);
+    }
+    else if (is_if(exp)) {
+        exp = is_true(eval(if_predicate(exp), env)) ?
+                  if_consequent(exp) :
+                  if_alternative(exp);
+        goto tailcall;
+    }
+    else if (is_application(exp)) {
+        procedure = eval(operator(exp), env);
+        arguments = list_of_values(operands(exp), env);
+        return (procedure->data.primitive_proc.fn)(arguments);
+    }
+    else {
+        fprintf(stderr, "cannot eval unknown expression type\n");
+        exit(1);
+    }
+    fprintf(stderr, "eval illegal state\n");
+    exit(1);
 }
 
 /************************ PRINT ************************/
@@ -537,6 +893,9 @@ void writeit(object *obj) {
             write_pair(obj);
             printf(")");
             break;
+        case PRIMITIVE_PROC:
+            printf("#<procedure>");
+            break;
         default:
             fprintf(stderr, "cannot write unknown type\n");
             exit(1);
@@ -552,7 +911,7 @@ void scheme(void) {
 
     while (1) {
         printf("> ");
-        writeit(eval(read()));
+        writeit(eval(read(), the_global_environment));
         printf("\n");
     }   
 }

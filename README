@@ -25,9 +25,7 @@ I made some changes to the Scheme syntax to suit the CBM:
   - Character literals are expressed using #% instead of #\
   - You can quote double-quotes in a string using percent (%", not \")
   - Use #%newline and #%space for newline and space in strings
-
-BUGS:
-  - Delete key doesn't work as expected
+  - Symbols can only be up to 10 characters long
 
 Enjoy!
 Kirk Martinez
