@@ -30,6 +30,7 @@ I made some changes to the Scheme syntax to suit the CBM:
 
 TODO:
   - Provide line history/navigation in interpreter using arrow keys
+  - Provide a way to read Scheme source from a text file
 
 BUGS:
   - Memory is never freed, even when re-running the program.
