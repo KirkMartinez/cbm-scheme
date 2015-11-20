@@ -12,7 +12,7 @@ You can probably use other platforms supported by cc65.
 Just change the SYS target platform in the Makefile.
 
 To build the Scheme interpreter:
-	make 
+	make CC65_HOME=/path/to/cc65
 
 The create a disk image (scheme.d64): 
 	make disk
