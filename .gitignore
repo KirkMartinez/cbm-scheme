@@ -4,4 +4,4 @@ scheme
 *.map
 *.o
 *.swp
-
+!scheme.d64
