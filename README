@@ -1,12 +1,12 @@
 Herein ye shall find a Scheme interpreter for the Commodore 128.
 
-You will need the following items:
+I have included a disk image (scheme.d64) in the repo in case you don't want to bother with compiling and just use Scheme with VICE or your Commodore straight away.
+
+If you want to build the Scheme interpreter you will need:
   1. The VICE emulator (to generate .d64 disk image)
 	http://vice-emu.sourceforge.net
   2. The cc65 C compiler, assembler, linker
 	http://cc65.github.io/cc65/
-  3. (Optional) A Commodore 128 (or you can use VICE)
-	http://www.ebay.com
 
 You can probably use other platforms supported by cc65.
 Just change the SYS target platform in the Makefile.
@@ -16,6 +16,8 @@ To build the Scheme interpreter:
 
 The create a disk image (scheme.d64): 
 	make disk
+
+------------------------
 
 The Scheme implementation is based on Peter Michaux's Scheme from 
 Scratch article: 
